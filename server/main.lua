@@ -1,8 +1,8 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
 
 -- Functions
-local identifierUsed = GetConvar('es_identifierUsed', 'steam')
-local foundResources = {}
+-- local identifierUsed = GetConvar('es_identifierUsed', 'steam')
+-- local foundResources = {}
 
 -- generate horseid
 local function GenerateHorseid()
@@ -17,7 +17,6 @@ local function GenerateHorseid()
     end
     return horseid
 end
--- Functions
 
 -- give starter items
 local function GiveStarterItems(source)
@@ -43,22 +42,18 @@ local function GiveStarterItems(source)
     end
 end
 
-RegisterNetEvent('rsg-multicharacter:server:disconnect', function(source)
-    DropPlayer(source, "You have disconnected from RSG RedM")
-end)
-
-RegisterNetEvent('rsg-multicharacter:server:loadUserData', function(cData, skindata)
+RegisterNetEvent('rsg-multicharacter:server:loadUserData', function(data, skindata)
     local src = source
-    if RSGCore.Player.Login(src, cData.citizenid) then
-        print('^2[rsg-core]^7 '..GetPlayerName(src)..' (Citizen ID: '..cData.citizenid..') has succesfully loaded!')
+    if RSGCore.Player.Login(src, data.citizenid) then
+        print('^2[rsg-core]^7 '..GetPlayerName(src)..' (Citizen ID: '..data.citizenid..') has succesfully loaded!')
         RSGCore.Commands.Refresh(src)
         TriggerClientEvent("rsg-multicharacter:client:closeNUI", src)
         if not skindata then
-            TriggerClientEvent('rsg-spawn:client:setupSpawnUI', src, cData, false)
+            TriggerClientEvent('rsg-spawn:client:setupSpawnUI', src, data, false)
         else
             TriggerClientEvent('rsg-appearance:client:OpenCreator', src, false, true)
         end
-        TriggerEvent('rsg-log:server:CreateLog', 'joinleave', 'Player Joined Server', 'green', '**' .. GetPlayerName(src) .. '** joined the server..')
+        TriggerEvent('rsg-log:server:CreateLog', 'joinleave', 'Player Joined Server', 'green', '**' .. GetPlayerName(src) .. '** ('..data.citizenid..' | '..src..') joined the server..')
     end
 end)
 
@@ -79,8 +74,11 @@ RegisterNetEvent('rsg-multicharacter:server:deleteCharacter', function(citizenid
     RSGCore.Player.DeleteCharacter(source, citizenid)
 end)
 
--- Callbacks
+RegisterNetEvent('rsg-multicharacter:server:disconnect', function(source)
+    DropPlayer(source, "You have disconnected from RSG RedM")
+end)
 
+-- Callbacks
 RSGCore.Functions.CreateCallback("rsg-multicharacter:server:setupCharacters", function(source, cb)
     local license = RSGCore.Functions.GetIdentifier(source, 'license')
     local plyChars = {}
@@ -89,6 +87,7 @@ RSGCore.Functions.CreateCallback("rsg-multicharacter:server:setupCharacters", fu
             result[i].charinfo = json.decode(result[i].charinfo)
             result[i].money = json.decode(result[i].money)
             result[i].job = json.decode(result[i].job)
+            result[i].metadata = json.decode(result[i].metadata)
             plyChars[#plyChars+1] = result[i]
         end
         cb(plyChars)
@@ -114,7 +113,7 @@ RSGCore.Functions.CreateCallback("rsg-multicharacter:server:GetNumberOfCharacter
 end)
 
 RSGCore.Functions.CreateCallback("rsg-multicharacter:server:getAppearance", function(source, cb, citizenid)
-    MySQL.Async.fetchAll('SELECT * FROM playerskins WHERE citizenid = ?', { citizenid}, function(result)
+    MySQL.Async.fetchAll('SELECT * FROM playerskins WHERE citizenid = ?', {citizenid}, function(result)
         if result ~= nil and #result > 0 then
             local skinData = json.decode(result[1].skin)
             local clothesData = json.decode(result[1].clothes)
@@ -127,6 +126,7 @@ RSGCore.Functions.CreateCallback("rsg-multicharacter:server:getAppearance", func
     end)
 end)
 
+-- commands
 RSGCore.Commands.Add("logout", "Logout of Character (Admin Only)", {}, false, function(source)
     RSGCore.Player.Logout(source)
     TriggerClientEvent('rsg-multicharacter:client:chooseChar', source)

@@ -18,6 +18,7 @@ shared_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/investigation.lua',
     'server/main.lua',
     'server/versionchecker.lua'
 }
@@ -25,11 +26,11 @@ server_scripts {
 files {
     'html/index.html',
     'html/style.css',
-    'html/RDRLino-Regular.ttf', 
     'html/reset.css',
     'html/script.js',
     'html/profanity.js',
     'html/assets/*.png',
+    'html/song/*.mp3',
 }
 
 dependencies {
