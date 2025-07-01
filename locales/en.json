@@ -1,0 +1,161 @@
+{
+    "Bandido": "Bandido",
+    "Tequila": "Tequila",
+    "Coyote": "Coyote",
+    "Rayo": "Rayo",
+    "Gringo": "Gringo",
+    "Sierra": "Sierra",
+    "Bronco": "Bronco",
+    "Chispa": "Chispa",
+    "Vaquero": "Vaquero",
+    "Redención": "Redención",
+    "Relámpago": "Relámpago",
+    "Centella": "Centella",
+    "Tormenta": "Tormenta",
+    "Valiente": "Valiente",
+    "Zafiro": "Zafiro",
+    "Sombra": "Sombra",
+    "Lucero": "Lucero",
+    "Fénix": "Fénix",
+    "Copérnico": "Copérnico",
+    "Alazán": "Alazán",
+    "Sabanero": "Sabanero",
+
+    "cl_unstick": "¡Libérame!",
+
+    "print_sv_debug": "[DEBUG] Multicharacter",
+    "print_sv_disconnect": "You have disconnected from RSG RedM.",
+    "print_sv_id": "Citizen ID",
+    "print_sv_loaded": "has succesfully loaded!",
+    "print_sv_error": "[ERROR SQL]",
+
+    "sv_joined": "Player Joined Server",
+    "sv_joined_log": "joined the server..",
+    "sv_loaded": "has succesfully loaded!",
+    "sv_logout": "Logout of Character (Admin Only)",
+    "sv_closeNUI": "Close Multi NUI",
+
+    "inv_sv_bio_intro_a": "Dicen que en estos lares nadie olvida un rostro… ni una tragedia. El tal %s %s parece decidido a cambiar eso.",
+    "inv_sv_bio_intro_b": "En cuanto pisó el polvoriento pueblo, %s %s supo que el Oeste no perdona a los de corazón blando.",
+    "inv_sv_bio_intro_c": "%s %s llegó como el viento entre los cañones: sin aviso, sin disculpas.",
+    "inv_sv_bio_intro_d": "Nadie sabe si %s %s es el héroe que necesitábamos… o el desastre que merecíamos.",
+    "inv_sv_bio_intro_e": "Las leyendas no siempre llevan capa. Algunas montan a caballo y escupen tabaco. Como %s %s.",
+
+    "inv_sv_bio_background_a": "Con un grupo sanguíneo %s y más cicatrices que un rancho abandonado, pertenece al gremio de %s.",
+    "inv_sv_bio_background_b": "Forjado entre whisky y pólvora, su pacto con la banda “%s” le ha granjeado tan buena como mala reputación.",
+    "inv_sv_bio_background_c": "Criado por bandidos y educado por el caos, su lealtad es tan volátil como la dinamita.",
+    "inv_sv_bio_background_d": "Dicen que %s no es un tipo, sino una tormenta con botas. Marca registrada de %s.",
+    "inv_sv_bio_background_e": "Abandonado por el destino, recogido por %s. Así comenzó el cuento que aún no termina.",
+
+    "inv_sv_bio_assets_houses_a": "Es dueño de %d moradas donde pueden oírse murmullos… y a veces disparos.",
+    "inv_sv_bio_assets_nohouses_a": "No paga renta, pero tampoco tiene casa que quemar.",
+    "inv_sv_bio_assets_houses_b": "Posee %d propiedades. Si las paredes hablaran, gritarían.",
+    "inv_sv_bio_assets_nohouses_b": "No tiene techo fijo. Como las balas perdidas, va donde el viento lo arrastra.",
+
+    "inv_sv_bio_assets_outfits_a": "Viste con %d atuendos tan relucientes como un revólver recién pulido.",
+    "inv_sv_bio_assets_nooutfits_a": "Hace de su harapos una bandera de orgullo.",
+    "inv_sv_bio_assets_outfits_b": "Su guardarropa es testigo de %d vidas pasadas.",
+    "inv_sv_bio_assets_nooutfits_b": "Viste lo puesto. Y lo puesto lleva años puesto.",
+
+    "inv_sv_bio_horses_a": "Posee %d corcel(es) que relinchan a la menor señal.",
+    "inv_sv_bio_nohorses_a": "Dejó a punta de espuelas más caballos que raíces.",
+    "inv_sv_bio_horses_b": "Sus %d caballos conocen caminos que ni los mapas se atreven a mostrar.",
+    "inv_sv_bio_nohorses_b": "No monta. Prefiere dejar huellas con las botas rotas.",
+
+    "inv_sv_bio_companions_a": "A su lado lame la mano hambrienta de %d compañero(s) peludos.",
+    "inv_sv_bio_nocompanions_a": "Ni un cuervo le hace compañía en el amanecer.",
+
+    "inv_sv_bio_behavior_walk_a": "Camina con estilo %s, es capaz de ganarse el aplauso de un tiburón y aterrorizar a un gato.",
+    "inv_sv_bio_behavior_walk_b": "Camina como quien ya ha muerto y sigue de pie. Su estilo: %s.",
+    "inv_sv_bio_behavior_brawl_a": "Cuando la bronca llama, saca su estilo de pelea %s como si fuera un cuchillo bien afilado.",
+    "inv_sv_bio_behavior_brawl_b": "Cuando la bronca llama, saca su estilo de pelea %s como si fuera un cuchillo bien afilado.",
+
+    "inv_sv_bio_outro_a": "En resumen: si lo cruzas, quítate el sombrero… y corre.",
+    "inv_sv_bio_outro_b": "Este es su legado: polvo, disparos y risas macabras cuando cae el sol.",
+    "inv_sv_bio_outro_c": "Ni amigo ni enemigo. Solo una advertencia con sombrero.",
+    "inv_sv_bio_outro_d": "Si sobrevive, la historia se contará. Si no, será parte del desierto.",
+    "inv_sv_bio_outro_e": "Un último trago, un disparo, y %s %s vuelve a fundirse en la noche…",
+
+    "inv_sv_bio_legal_wanted_a": "No hay ley que lo detenga, ni sheriff que lo atrape. %s %s es un lobo en piel de oveja.",
+    "inv_sv_bio_legal_wanted_b": "Sus crímenes son tan variados como sus cicatrices. Desde robos hasta duelos, su historial es un mapa del Oeste salvaje.",
+    "inv_sv_bio_legal_wanted_c": "Si la ley lo atrapa, es solo cuestión de tiempo antes de que vuelva a las andadas. No conoce el arrepentimiento.",
+    
+    "inv_sv_bio_interludes_a" : "Dicen que lo vieron en Blackwater… o tal vez fue su fantasma.",
+    "inv_sv_bio_interludes_b" : "El whisky le teme. Las balas lo esquivan por respeto.",
+    "inv_sv_bio_interludes_c" : "Tiene enemigos que rezan por no encontrarlo, y amigos que rezan por hacerlo.",
+    "inv_sv_bio_interludes_d" : "La noche en que llegó, el silencio se escondió bajo la mesa.",
+
+    "inv_sv_bio_ctx_a" : "Desconocido",
+    "inv_sv_bio_ctx_b" : "",
+    "inv_sv_bio_ctx_c" : "Negra",
+    "inv_sv_bio_ctx_d" : "Desempleado",
+    "inv_sv_bio_ctx_e" : "Banda",
+    "inv_sv_bio_ctx_f" : "Normal",
+    "inv_sv_bio_ctx_g" : "Estándar",
+
+    "inv_sv_nobio" : "Sin observaciones notables.",
+    
+    "print_sv_inv": "[INVESTIGACIÓN]",
+    "print_sv_dossier_enabled": "Datos crudos del jugador desde la BD",
+    "print_sv_send": "Enviando datos al cliente",
+
+
+    "print_sv_actions": "[ACTIONS]",
+
+    "notif_char_deleted" : "¡Personaje eliminado!",
+    "notif_deleted_other_char" : "Has borrado con éxito el personaje con id de ciudadano %{citizenid}",
+    "notif_forgot_citizenid" : "¡Olvidaste introducir un id de ciudadano!",
+
+    "com_deletechar_description" : "Borra el personaje de otro jugador",
+    "com_citizenid" : "ID del ciudadano",
+    "com_citizenid_help" : "El ID de ciudadano del personaje que quieres eliminar",
+    "com_logout_description" : "Cierre de sesión del personaje (sólo para el administrador)",
+    "com_closeNUI_description" : "Cerrar Multi NUI",
+
+    "misc_droppedplayer" : "Se ha desconectado de RSGCore",
+
+    "ui_characters_header" : "Mis personajes",
+    "ui_emptyslot" : "Ranura vacía",
+    "ui_play_button" : "Jugar",
+    "ui_create_button" : "Crear personaje",
+    "ui_delete_button" : "Eliminar personaje",
+
+    "ui_charinfo_header" : "Información del personaje",
+    "ui_charinfo_description" : "Selecciona una ranura de personaje para ver toda la información sobre tu personaje",
+    "ui_name" : "Nombre",
+    "ui_male" : "Hombre",
+    "ui_female" : "Mujer",
+    "ui_firstname" : "Nombre",
+    "ui_lastname" : "Apellido",
+    "ui_nationality" : "Nacionalidad",
+    "ui_gender" : "Género",
+    "ui_birthdate" : "Fecha de nacimiento",
+    "ui_job" : "Trabajo",
+    "ui_jobgrade": "Grado de trabajo",
+    "ui_cash" : "Dinero",
+    "ui_bank" : "Banco",
+    "ui_phonenumber" : "Número de teléfono",
+    "ui_accountnumber" : "Número de cuenta",
+
+    "ui_chardel_header" : "Registro de personajes",
+    "ui_deletechar_header" : "Borrar personaje",
+    "ui_deletechar_description" : "¿Seguro que quieres borrar tu personaje?",
+
+    "ui_cancel" : "Cancelar",
+    "ui_confirm" : "Confirmar",
+
+    "ui_retrieving_playerdata" : "Recuperando datos del jugador",
+    "ui_validating_playerdata" : "Validando los datos del jugador",
+    "ui_retrieving_characters" : "Recuperando personajes",
+    "ui_validating_characters" : "Validación de personajes",
+
+    "ui_ran_into_issue" : "Nos encontramos con un problema",
+    "ui_profanity" : "¡Parece que está intentando utilizar algún tipo de blasfemia / malas palabras en su nombre o nacionalidad!",
+    "ui_forgotten_field" : "¡Parece que ha olvidado introducir uno o varios campos!",
+
+    "print_cl_group" : "Grupo seleccionado",
+    "print_cl_coords" : "Coordenadas del jugador",
+    "print_cl_nocoords" : "No multicharacter groups configured",
+
+    "" : ""
+}
