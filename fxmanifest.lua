@@ -8,7 +8,8 @@ version '2.3.3'
 ui_page "html/index.html"
 
 client_scripts {
-    'client/main.lua'
+    'client/main.lua',
+    'client/unstick.lua'
 }
 
 shared_scripts {
@@ -18,18 +19,21 @@ shared_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/actions.lua',
+    'server/givestart.lua',
+    'server/investigation.lua',
     'server/main.lua',
     'server/versionchecker.lua'
 }
 
 files {
     'html/index.html',
-    'html/style.css',
-    'html/RDRLino-Regular.ttf', 
-    'html/reset.css',
-    'html/script.js',
-    'html/profanity.js',
+    'html/css/reset.css',
+    'html/css/style.css',
+    'html/js/script.js',
+    'html/js/profanity.js',
     'html/assets/*.png',
+    'html/song/*.mp3',
 }
 
 dependencies {
