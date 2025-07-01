@@ -1,22 +1,33 @@
+--[[ RegisterNUICallback('disconnectButton', function(data, cb)
+    if charPed and DoesEntityExist(charPed) then
+        SetEntityAsMissionEntity(charPed, true, true)
+        DeleteEntity(charPed)
+    end
+    charPed = nil
+    TriggerServerEvent('rsg-multicharacter:server:disconnect')
+    cb('ok')
+end) ]]
+
 local RSGCore = exports['rsg-core']:GetCoreObject()
-lib.locale()
+-- local CamManager = exports['rsg-menubase']:GetCamManager()
 
 local charPed = nil
 local DataSkin = nil
+local selectingChar = false
+
 local cam = nil
 local fixedCam = nil
-local lightThread = nil
-local spawnThread = nil
-
-local selectingChar = true
-
-local isChoosing = false
 
 ----------------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------------
-local function logprint(key)
-    if Config.Debug then print(locale('print_sv_debug'), key) end
+-- ANIMATION
+local function iniScenario(ped)
+    if not selectingChar or not ped or not DoesEntityExist(ped) then return end
+    if DoesEntityExist(ped) then
+        local scene = Config.scenarios[math.random(#Config.scenarios)]
+        TaskStartScenarioInPlace(ped, scene, -1, true, false, false, false)
+    end
 end
 
 -- CLEAN PED
@@ -26,12 +37,214 @@ local function cleanPed(ped)
         SetEntityAsMissionEntity(ped, true, true)
         DeleteEntity(ped)
         SetModelAsNoLongerNeeded(model)
-        charPed = nil
+        ped = nil
     end
 end
 
+-- LIGHT
+local function applyLighOn(bool)
+    while selectingChar do
+        Wait(1)
+        if bool then
+            -- LIGHT COORDS
+            DrawLightWithRange(Config.STATE.LIGHT_POS.x, Config.STATE.LIGHT_POS.y , Config.STATE.LIGHT_POS.z + 1.0 , 255, 255, 255, 5.5, 100.0)
+        else
+            -- LIGHT PED
+            local playerPed = PlayerPedId()
+            local coords = GetEntityCoords(playerPed)
+            DrawLightWithRange(coords.x, coords.y , coords.z + 1.0 , 255, 255, 255, 5.5, 50.0)
+        end
+    end
+end
+
+-- TIMECYCLE
+local function applyBlur()
+    SetTimecycleModifier('hud_def_blur')
+    SetTimecycleModifierStrength(1.0)
+end
+
+-- CAMERA
+local function SetupInmersiveCam(bool)
+    local playerPed = PlayerPedId()
+    if bool then
+        -- DoScreenFadeIn(1000)
+        -- applyBlur()
+
+        -- Cam ini (toma general)
+        cam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
+        SetCamCoord(cam, Config.STATE.CAM_INI.x, Config.STATE.CAM_INI.y, Config.STATE.CAM_INI.z)
+        SetCamRot(cam, Config.STATE.CAM_INI_ROT.x, Config.STATE.CAM_INI_ROT.y, Config.STATE.CAM_INI_ROT.z) -- Apuntando hacia el área general del spawn
+        SetCamActive(cam, true)
+        RenderScriptCams(true, true, 1000, true, false)
+
+        -- Cam end (nuestro plano perfecto)
+        -- Posicionan la cam a la DERECHA del personaje para que éste aparezca a la IZQUIERDA
+        fixedCam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
+        SetCamCoord(fixedCam, Config.STATE.CAM_POS.x, Config.STATE.CAM_POS.y, Config.STATE.CAM_POS.z)
+        SetCamRot(fixedCam, Config.STATE.CAM_POS_ROT.x, Config.STATE.CAM_POS_ROT.y, Config.STATE.CAM_POS_ROT.z) -- Apuntando hacia el área general del spawn
+        SetCamFov(fixedCam, 60.0)
+        -- Apunta la cam directamente al personaje
+        -- PointCamAtCoord(fixedCam, 0.0, 0.0, 1.7)
+        SetCamActive(fixedCam, true)
+
+        -- active cam interior
+        local sleep = 2000
+        SetCamActiveWithInterp(fixedCam, cam, sleep, true, true)
+        Wait(sleep)
+        -- CreateThread(function()
+        --     Wait(2000)
+        --     if cam and DoesCamExist(cam) then
+        --         DestroyCam(cam, false)
+        --         cam = nil
+        --     end
+        -- end)
+        DestroyAllCams(true)
+        RenderScriptCams(false, false, 0, true, false)
+        -- WHAT IS CAMERA groundCam ???
+        -- WHAT IS InterP ???
+        -- if groundCam and DoesCamExist(groundCam) then
+        --     DestroyCam(groundCam, false)
+        --     groundCam = nil
+        -- end
+        -- InterP = true
+
+    else
+
+        SetTimecycleModifier('default')
+        if cam and DoesCamExist(cam) then
+            SetCamActive(cam, false)
+            DestroyCam(cam, true)
+        end
+        if fixedCam and DoesCamExist(fixedCam) then
+            SetCamActive(fixedCam, false)
+            DestroyCam(fixedCam, true)
+        end
+        DestroyAllCams(true)
+        RenderScriptCams(false, false, 0, true, false)
+        cam = nil
+        fixedCam = nil
+        FreezeEntityPosition(playerPed, false)
+    end
+end
+
+-- TXT NUI
+local locales = {}
+
+-- OPEN NUI
+local function openCharMenu(bool)
+    SetupInmersiveCam(bool)
+    RSGCore.Functions.TriggerCallback("rsg-multicharacter:server:GetNumberOfCharacters", function(result)
+        SetNuiFocus(bool, bool)
+        SendNUIMessage({
+            action = "ui",
+            toggle = bool,
+            nChar = result,
+            panelConfig = Config.InvestigationPanels,
+            musicConfigData = json.encode(Config.Music),
+            text = locales
+        })
+    end)
+
+end
+
+-- CLOSE MOUSE NUI
+RegisterNetEvent('rsg-multicharacter:client:closeNUI', function()
+    cleanPed(charPed)
+    SetNuiFocus(false, false)
+end)
+
+-- STOP RESOURCE
+AddEventHandler('onResourceStop', function(resource)
+    if (GetCurrentResourceName() ~= resource) then return end
+    selectingChar = false
+    -- openCharMenu(false)
+
+    SetTimecycleModifier('default')
+    DestroyAllCams(true)
+    RenderScriptCams(false, false, 0, true, false)
+    cam = nil
+    fixedCam = nil
+
+    local playerPed = PlayerPedId()
+    FreezeEntityPosition(playerPed, false)
+
+    cleanPed(charPed)
+    DataSkin = nil
+
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = "ui", toggle = false })
+end)
+
+local function StopCharacterSelectionCam()
+    --if not selectingChar then return end
+    DoScreenFadeOut(Config.STATE.FADE_DURATION)
+    Wait(Config.STATE.FADE_DURATION)
+
+    selectingChar = false
+
+    SetTimecycleModifier('default')
+    DestroyAllCams(true)
+    --CamManager.Destroy()
+    RenderScriptCams(false, false, 0, true, false)
+    cam = nil
+    fixedCam = nil
+
+    local playerPed = PlayerPedId()
+    FreezeEntityPosition(playerPed, false)
+
+    cleanPed(charPed)
+    DataSkin = nil
+
+    openCharMenu(false)
+end
+
+----------------------------------------------------------------
+-- EVENT PRINCIPAL
+----------------------------------------------------------------
+CreateThread(function()
+    while not NetworkIsSessionStarted() do Wait(1000) end
+    Wait(500)
+    TriggerEvent('rsg-multicharacter:client:chooseChar')
+end)
+
+RegisterNetEvent('rsg-multicharacter:client:chooseChar', function()
+    selectingChar = true
+
+    local playerPed = PlayerPedId()
+    SetEntityVisible(playerPed, false, false)
+    DoScreenFadeOut(250)
+    Wait(250)
+
+    FreezeEntityPosition(playerPed, true)
+
+    -- LOAD INTERIOR COORDS AND PED POSITION
+    GetInteriorAtCoords(Config.STATE.INTERTIOR.x, Config.STATE.INTERTIOR.y, Config.STATE.INTERTIOR.z)
+    SetEntityCoords(playerPed, Config.STATE.SPAWN_INI.x, Config.STATE.SPAWN_INI.y, Config.STATE.SPAWN_INI.z, false, false, false, true)
+    SetEntityHeading(playerPed, Config.STATE.SPAWN_HEADING)
+    Wait(1500)
+
+    -- OFF LOADSCREEN
+    ShutdownLoadingScreen()
+    ShutdownLoadingScreenNui()
+    Wait(10)
+    -- SYNC OFF
+    exports.weathersync:setMyTime(0, 0, 0, 0, true)
+
+    -- CAM, NUI, BLUR AND LIGHT ON
+    -- SetupInmersiveCam(true)
+    openCharMenu(true)
+
+    applyBlur()
+    DoScreenFadeIn(1000)
+    applyLighOn(Config.STATE.LIGHTCOORDS_ENABLE)
+
+end)
+
+----------------------------------------------------------------
+-- HELPERS NUI
+----------------------------------------------------------------
 -- CUSTOM NPC RANDOM
-local function baseModel(sex)
+local function baseModel(ped, sex)
     local partsBody = (sex == 'mp_male') and {
         {0x158cb7f2, true}, --head
         {361562633, true}, --hair
@@ -52,340 +265,82 @@ local function baseModel(sex)
         {0x134D7E03, true} -- bots
     }
     for _, part in ipairs(partsBody) do
-        if charPed and DoesEntityExist(charPed) then
-            ApplyShopItemToPed(charPed, part[1], part[2], true, true)
-        end
+        ApplyShopItemToPed(ped, part[1], part[2], true, true)
     end
 end
-
--- SPAWN PED
---[[ local function spawnCharPed(model, coords, heading)
-    RequestModel(model)
-    while not HasModelLoaded(model) do Wait(0) end
-    charPed = CreatePed(model, coords.x, coords.y, coords.z, heading, false, false)
-    FreezeEntityPosition(charPed, false)
-    SetEntityInvincible(charPed, true)
-    SetBlockingOfNonTemporaryEvents(charPed, true)
-    return charPed
-end ]]
-
-----------------------------------------------------------------
--- EXTRA NUI and Character Info
-----------------------------------------------------------------
--- INVESTIGATION
-local function investigationPed(cid)
-    SendNUIMessage({ action = 'clearInvestigationData' })
-    Wait(10)
-    if cid then
-        RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:getInvestigationData', function(dataPly)
-            SendNUIMessage({ action = 'updateInvestigationData', data = dataPly })
-        end, cid)
-    end
-end
-
--- ANIMATION
-local function iniScenario(ped)
-    if not Config.EnableAnimations or not selectingChar or not DoesEntityExist(ped) then return end
-    local scene = Config.Scenarios[math.random(#Config.Scenarios)]
-    TaskStartScenarioInPlace(ped, scene, -1, true, false, false, false)
-end
-
-----------------------------------------------------------------
--- Multicharacter Group Handling
-----------------------------------------------------------------
-local function GetMulticharacterGroup()
-    local groups = {}
-    for k, _ in pairs(Config.Multicharacter) do
-        table.insert(groups, k)
-    end
-    if #groups == 0 then
-        logprint(locale('print_cl_nocoords'))
-        return Config.Multicharacter[Config.DefaultGroup], Config.DefaultGroup
-    end
-    local randomIndex = math.random(1, #groups)
-    local selectedKey = groups[randomIndex]
-    return Config.Multicharacter[selectedKey], selectedKey
-end
-
--- Get the selected group and its name
-local selectedGroup, groupName = GetMulticharacterGroup()
-logprint(locale('print_cl_group').. ": ".. groupName)
-logprint(locale('print_cl_coords')..": ".. selectedGroup.ply_coords)
-
-----------------------------------------------------------------
--- Camera and Visual Effects
-----------------------------------------------------------------
--- TIMECYCLE
-local function applyBlur()
-    SetTimecycleModifier('hud_def_blur')
-    SetTimecycleModifierStrength(1.0)
-end
-
--- CAMERA
-local function skyCam(state)
-    if not selectedGroup then logprint(locale('print_cl_no_group')) return end
-
-    if state then
-        DoScreenFadeIn(1000)
-        applyBlur()
-
-        -- Cam ini (toma general)
-        cam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
-        SetCamCoord(cam, selectedGroup.ini_cam.x, selectedGroup.ini_cam.y, selectedGroup.ini_cam.z)
-        SetCamRot(cam, selectedGroup.ini_camrot.x, selectedGroup.ini_camrot.y, selectedGroup.ini_camrot.z)
-        SetCamActive(cam, true)
-
-        -- Cam end (nuestro plano perfecto)
-        fixedCam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
-        SetCamCoord(fixedCam, selectedGroup.end_cam.x, selectedGroup.end_cam.y, selectedGroup.end_cam.z)
-        SetCamRot(fixedCam, selectedGroup.end_camrot.x, selectedGroup.end_camrot.y, selectedGroup.end_camrot.z)
-        SetCamFov(fixedCam, 60.0)
-        -- PointCamAtCoord(fixedCam, 0.0, 0.0, 1.7)    -- Apunta la cam directamente al personaje
-
-        SetCamActive(fixedCam, true)
-        SetCamActiveWithInterp(fixedCam, cam, 3900, true, true)
-        RenderScriptCams(true, true, 1000, true, false)
-
-        Wait(3900)
-        if cam and DoesCamExist(cam) then DestroyCam(cam) end
-
-        -- DestroyCam(groundCam)
-        InterP = true
-    else
-        SetTimecycleModifier('default')
-
-        -- SetCamActive(cam, false)
-        -- DestroyCam(cam, true)
-        if cam and DoesCamExist(cam) then
-            SetCamActive(cam, false)
-            DestroyCam(cam, true)
-        end
-        cam = nil
-
-        --[[ if fixedCam and DoesCamExist(fixedCam) then DestroyCam(fixedCam, true) end
-        fixedCam = nil ]]
-
-        RenderScriptCams(false, false, 1, true, true)
-        local playerPed = PlayerPedId()
-        FreezeEntityPosition(playerPed, false)
-    end
-end
-
--- LIGHT
-local function applyLighOn(bool)
-    if not selectedGroup then logprint(locale('print_cl_no_group')) return end
-    if lightThread then TerminateThread(lightThread) end
-    lightThread = CreateThread(function()
-        while selectingChar do
-            Wait(1)
-            local playerPed = PlayerPedId()
-            local coords = bool and selectedGroup.light_coords or GetEntityCoords(playerPed)
-            local range = bool and 11.0 or 5.5
-            local intensity = bool and 100.0 or 50.0
-            DrawLightWithRange(coords.x, coords.y , coords.z + 1.0 , 255, 255, 255, range, intensity)
-        end
-    end)
-end
-
-----------------------------------------------------------------
--- EVENT PRINCIPAL
-----------------------------------------------------------------
--- CreateThread(function()
---     while true do
---         Wait(0)
---         if NetworkIsSessionStarted() then
---             Wait(500)
---             TriggerEvent('rsg-multicharacter:client:chooseChar')
---             return
---         end
---     end
--- end)
-CreateThread(function()
-    while not NetworkIsSessionStarted() do Wait(1000) end
-    Wait(500)
-    TriggerEvent('rsg-multicharacter:client:chooseChar')
-end)
-
-----------------------------------------------------------------
--- NUI and Character Events
-----------------------------------------------------------------
--- OPEN NUI
-local function openCharMenu(state)
-    RSGCore.Functions.TriggerCallback("rsg-multicharacter:server:GetNumberOfCharacters", function(result)
-        SetNuiFocus(state, state)
-        SendNUIMessage({
-            action = "ui",
-            toggle = state,
-            nChar = result,
-
-            panelConfig = Config.InvPanels,
-            musicConfigData = json.encode(Config.Music),
-            -- text = locales
-        })
-        isChoosing = state
-        --choosingCharacter = state
-        Wait(100)
-        skyCam(state)     -- CAM
-    end)
-end
-
--- STOP NUI
-RegisterNetEvent('rsg-multicharacter:client:closeNUI', function()
-    -- DeleteEntity(charPed)
-    cleanPed(charPed)
-
-    SetNuiFocus(false, false)
-    isChoosing = false
-end)
-
--- EVENT PRINCIPAL
-RegisterNetEvent('rsg-multicharacter:client:chooseChar', function()
-
-    local playerPed = PlayerPedId()
-    SetEntityVisible(playerPed, false, false)
-    SetNuiFocus(false, false)
-    DoScreenFadeOut(10)
-    Wait(1000)
-    -- LOAD INTERIOR COORDS AND PED POSITION
-
-    if not selectedGroup then logprint(locale('print_cl_no_group')) return end
-    GetInteriorAtCoords(selectedGroup.interior.x, selectedGroup.interior.y, selectedGroup.interior.z)
-    FreezeEntityPosition(playerPed, true)
-    SetEntityCoords(playerPed, selectedGroup.charPed_coords.x, selectedGroup.charPed_coords.y, selectedGroup.charPed_coords.z)
-    Wait(1500)
-
-    -- OFF LOADSCREEN
-    ShutdownLoadingScreen()
-    ShutdownLoadingScreenNui()
-    Wait(10)
-    -- SYNC OFF
-    exports.weathersync:setMyTime(0, 0, 0, 0, true)
-
-    -- NUI
-    openCharMenu(true)
-    applyLighOn(Config.enabledLight)
-end)
-
--- STOP RESOURCE
-AddEventHandler('onResourceStop', function(resource)
-    -- if (GetCurrentResourceName() == resource) then
-    --     DeleteEntity(charPed)
-    --     SetModelAsNoLongerNeeded(charPed)
-    -- end
-
-    if (GetCurrentResourceName() ~= resource) then return end
-    selectingChar = false
-
-    SetTimecycleModifier('default')
-    DestroyAllCams(true)
-    RenderScriptCams(false, false, 0, true, false)
-    cam = nil
-    fixedCam = nil
-
-    local playerPed = PlayerPedId()
-    FreezeEntityPosition(playerPed, false)
-
-    cleanPed(charPed)
-    DataSkin = nil
-
-    SetNuiFocus(false, false)
-    SendNUIMessage({ action = "ui", toggle = false })
-end)
 
 ----------------------------------------------------------------
 -- NUI CALLBACKS
 ----------------------------------------------------------------
+
 -- LOAD CHAR AND INVESTIGATION
 -- Visually seeing the char
-RegisterNUICallback('cDataPed', function(data, cb) -- Visually seeing the char
-    local cData = data.cData
-
-    -- SetEntityAsMissionEntity(charPed, true, true)
-    -- DeleteEntity(charPed)
+RegisterNUICallback('cDataPed', function(data, cb)
     cleanPed(charPed)
 
-    if not selectedGroup then logprint(locale('print_cl_no_group')) return end
-    if cData ~= nil then
-        RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:getAppearance', function(appearance)
-            local skinTable = appearance.skin or {}
-            DataSkin = appearance.skin
-            local clothesTable = appearance.clothes or {}
-            local sex = tonumber(skinTable.sex) == 1 and `mp_male` or `mp_female`
-            if sex ~= nil then
-                if spawnThread then TerminateThread(spawnThread) end
-                spawnThread = CreateThread(function ()
-                    RequestModel(sex)
-                    while not HasModelLoaded(sex) do Wait(0) end
-                    Wait(100)
-                    charPed = CreatePed(sex, selectedGroup.ply_coords.x, selectedGroup.ply_coords.y, selectedGroup.ply_coords.z, selectedGroup.ply_heading, false, false)
-                    FreezeEntityPosition(charPed, false)
-                    SetEntityInvincible(charPed, true)
-                    SetBlockingOfNonTemporaryEvents(charPed, true)
-                    while not IsPedReadyToRender(charPed) do
-                        Wait(1)
-                    end
-                    exports['rsg-appearance']:ApplySkinMultiChar(skinTable, charPed, clothesTable)
-                end)
-
-                Wait(50)
-
-                iniScenario(charPed)
-                investigationPed(cData.citizenid)
-
-            else
-                if spawnThread then TerminateThread(spawnThread) end
-                spawnThread = CreateThread(function()
-                    local randommodels = {
-                        "mp_male",
-                        "mp_female",
-                    }
-                    local randomModel = randommodels[math.random(1, #randommodels)]
-                    local model = joaat(randomModel)
-                    RequestModel(model)
-                    while not HasModelLoaded(model) do Wait(0) end
-                    Wait(100)
-                    baseModel(randomModel)
-                    charPed = CreatePed(model, selectedGroup.ply_coords.x, selectedGroup.ply_coords.y, selectedGroup.ply_coords.z, selectedGroup.ply_heading, false, false)
-                    FreezeEntityPosition(charPed, false)
-                    SetEntityInvincible(charPed, true)
-                    SetBlockingOfNonTemporaryEvents(charPed, true)
-                end)
-                Wait(50)
-
-                iniScenario(charPed)
-                investigationPed(cData.citizenid)
-            end
-        end, cData.citizenid)
-    else
-        if spawnThread then TerminateThread(spawnThread) end
-        spawnThread = CreateThread(function()
-            local randommodels = {
-                "mp_male",
-                "mp_female",
-            }
-            local randomModel = randommodels[math.random(1, #randommodels)]
+    local function createAndShowPed(randomModel, skin, clothes, citizenid, bool)
+        CreateThread(function()
             local model = joaat(randomModel)
             RequestModel(model)
             while not HasModelLoaded(model) do Wait(0) end
-            charPed = CreatePed(model, selectedGroup.ply_coords.x, selectedGroup.ply_coords.y, selectedGroup.ply_coords.z, selectedGroup.ply_heading, false, false)
-            Wait(100)
-            baseModel(randomModel)
+            charPed = CreatePed(model, Config.STATE.SPAWN_POS.x, Config.STATE.SPAWN_POS.y, Config.STATE.SPAWN_POS.z, Config.STATE.SPAWN_HEADING, false, false)
+
             FreezeEntityPosition(charPed, false)
             SetEntityInvincible(charPed, true)
-            NetworkSetEntityInvisibleToNetwork(charPed, true)
             SetBlockingOfNonTemporaryEvents(charPed, true)
+
+            if skin then
+                while not IsPedReadyToRender(charPed) do
+                    Wait(1)
+                end
+                exports['rsg-appearance']:ApplySkinMultiChar(skin, charPed, clothes)
+            else
+                baseModel(charPed, model == `mp_male` and 'mp_male' or 'mp_female')
+            end
+
+            Wait(50)
+
+            iniScenario(charPed)
+
+            -- PLAYER INVESTIGATION
+            if citizenid then
+                -- Clean
+                SendNUIMessage({ action = 'clearInvestigationData' })
+                Wait(10)
+                -- LOAD 
+                RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:getInvestigationData', function(investigationData)
+                    SendNUIMessage({ action = 'updateInvestigationData', data = investigationData })
+                end, citizenid)
+            end
+            -- END
+
+            cb('ok')
         end)
-        Wait(50)
-
-        iniScenario(charPed)
-        investigationPed()
     end
-    cb('ok')
-end)
 
--- CLOSE
-RegisterNUICallback('closeUI', function(data, cb)
-    openCharMenu(false)
+    local cData = data.cData
+    if cData ~= nil then
+        RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:getAppearance', function(appearance)
+            -- if not appearance then cb('ok'); return end
+            DataSkin = appearance.skin or {}
+            local sex = tonumber(appearance.skin.sex) == 1 and `mp_male` or `mp_female`
+            local clothesTable = appearance.clothes or {}
+            if sex ~= nil then
+                createAndShowPed(sex, DataSkin, clothesTable, cData.citizenid, true)
+                -- LOAD PLAYER INVESTIGATION
+                -- RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:getInvestigationData', function(investigationData)
+                --     SendNUIMessage({ action = 'updateInvestigationData', data = investigationData })
+                -- end, cData.citizenid)
+                -- END
+            else
+                -- createAndShowPed(sex, DataSkin, clothesTable, cData.citizenid, true)
+            end
+        end, cData.citizenid)
+    else
+        local sex = ({`mp_male`, `mp_female`})[math.random(2)]
+        createAndShowPed(sex, nil, nil, nil, false)
+        -- SendNUIMessage({ action = 'clearInvestigationData' })
+    end
     cb('ok')
 end)
 
@@ -396,39 +351,25 @@ RegisterNUICallback('selectCharacter', function(data, cb)
     if DataSkin ~= nil then
         DoScreenFadeOut(10)
         TriggerServerEvent('rsg-multicharacter:server:loadUserData', cData)
-
-        openCharMenu(false)
-        -- local model = IsPedMale(charPed) and 'mp_male' or 'mp_female'
-        -- SetEntityAsMissionEntity(charPed, true, true)
-        -- DeleteEntity(charPed)
-        cleanPed(charPed)
+        StopCharacterSelectionCam()
 
         Wait(5000)
         TriggerServerEvent('rsg-appearance:server:LoadSkin')
         Wait(500)
         TriggerServerEvent('rsg-appearance:server:LoadClothes', 1)
-        -- SetModelAsNoLongerNeeded(model)
     else
         DoScreenFadeOut(10)
         TriggerServerEvent('rsg-multicharacter:server:loadUserData', cData, true)
-        openCharMenu(false)
-
-        -- local model = IsPedMale(charPed) and 'mp_male' or 'mp_female'
-        -- SetEntityAsMissionEntity(charPed, true, true)
-        -- DeleteEntity(charPed)
-        -- SetModelAsNoLongerNeeded(model)
-        cleanPed(charPed)
+        StopCharacterSelectionCam()
     end
+
     cb('ok')
 end)
 
 -- LIST
-RegisterNUICallback('setupCharacters', function(data, cb) -- Present char info
+RegisterNUICallback('setupCharacters', function(data, cb)
     RSGCore.Functions.TriggerCallback("rsg-multicharacter:server:setupCharacters", function(result)
-        SendNUIMessage({
-            action = "setupCharacters",
-            characters = result
-        })
+        SendNUIMessage({ action = "setupCharacters", characters = result })
     end)
     cb('ok')
 end)
@@ -440,38 +381,74 @@ RegisterNUICallback('removeBlur', function(data, cb)
 end)
 
 -- NEW PLAYER
-RegisterNUICallback('createNewCharacter', function(data, cb) -- Creating a char
-    selectingChar = false
+RegisterNUICallback('createNewCharacter', function(data, cb)
+    StopCharacterSelectionCam()
     DoScreenFadeOut(150)
     Wait(200)
     TriggerEvent("rsg-multicharacter:client:closeNUI")
-    DestroyAllCams(true)
-
-    -- SetModelAsNoLongerNeeded(charPed)
-    -- DeleteEntity(charPed)
-    cleanPed(charPed)
-
     DoScreenFadeIn(1000)
     local playerPed = PlayerPedId()
-    FreezeEntityPosition(playerPed, false)
-    TriggerEvent('rsg-appearance:client:OpenCreator', data)
+    -- Control the appearance script
+    CreateThread(function()
+        Wait(500)
+        DoScreenFadeIn(1000)
+        FreezeEntityPosition(playerPed, false)
+        TriggerEvent('rsg-appearance:client:OpenCreator', data)
+    end)
     cb('ok')
 end)
 
 -- DEL PLAYER
-RegisterNUICallback('removeCharacter', function(data, cb) -- Removing a char
+RegisterNUICallback('removeCharacter', function(data, cb)
+    cleanPed(charPed)
     TriggerServerEvent('rsg-multicharacter:server:deleteCharacter', data.citizenid)
+    -- TriggerEvent('rsg-multicharacter:client:chooseChar')
     Wait(200)
     RSGCore.Functions.TriggerCallback("rsg-multicharacter:server:setupCharacters", function(result)
         SendNUIMessage({ action = "setupCharacters", characters = result })
     end)
-    TriggerEvent('rsg-multicharacter:client:chooseChar')
     cb('ok')
 end)
 
--- DISCONNECT
---[[ RegisterNUICallback('disconnectButton', function(data, cb)
-    cleanPed(charPed)
-    TriggerServerEvent('rsg-multicharacter:server:disconnect')
+-- CLOSE
+RegisterNUICallback('closeUI', function(data, cb)
+    StopCharacterSelectionCam()
     cb('ok')
-end) ]]
+end)
+
+-- TELEGRAM READ
+RegisterNUICallback('markTelegramsRead', function(data, cb)
+    if data.citizenid then
+        RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:markTelegramsAsRead', function()
+            cb('ok')
+        end, data.citizenid)
+    end
+end)
+
+-- OUTFIT CHANGE
+-- RegisterNUICallback('markOutfitChange', function(data, cb)
+--     if data.citizenid then
+--         RSGCore.Functions.TriggerCallback('rsg-multicharacter:server:markOutfitAsChange', function()
+--             TriggerServerEvent('rsg-appearance:server:LoadClothes', 1)
+--             cb('ok')
+--         end, data.citizenid)
+--     end
+-- end)
+
+----------------------------------------------------------------
+-- unstick player from start location
+----------------------------------------------------------------
+CreateThread(function()
+    if LocalPlayer.state['isLoggedIn'] then
+        exports['rsg-core']:createPrompt('unstick', Config.UnstickStart, Config.KeyUnstick, 'Set Me Free!', {
+            type = 'client',
+            event = 'rsg-multicharacter:client:unstick',
+        })
+    end
+end)
+
+RegisterNetEvent('rsg-multicharacter:client:unstick', function()
+    local playerPed = PlayerPedId()
+    SetEntityCoordsNoOffset(playerPed, Config.UnstickEnd, true, true, true)
+    FreezeEntityPosition(playerPed, false)
+end)

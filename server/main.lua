@@ -1,56 +1,84 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
-lib.locale()
 
+-- Functions
 -- local identifierUsed = GetConvar('es_identifierUsed', 'steam')
 -- local foundResources = {}
 
-local function logprint(key)
-    if Config.Debug then print(locale('print_sv_debug'), key) end
+-- generate horseid
+local function GenerateHorseid()
+    local UniqueFound = false
+    local horseid = nil
+    while not UniqueFound do
+        horseid = tostring(RSGCore.Shared.RandomStr(3) .. RSGCore.Shared.RandomInt(3)):upper()
+        local result = MySQL.prepare.await('SELECT COUNT(*) as count FROM player_horses WHERE horseid = ?', { horseid })
+        if result == 0 then
+            UniqueFound = true
+        end
+    end
+    return horseid
 end
 
--- Events
--- To disconnect
-RegisterNetEvent('rsg-multicharacter:server:disconnect', function(source)
-    DropPlayer(source, locale('print_sv_disconnect'))
-end)
+-- give starter items
+local function GiveStarterItems(source)
+    local Player = RSGCore.Functions.GetPlayer(source)
+    for k, v in pairs(RSGCore.Shared.StarterItems) do
+        Player.Functions.AddItem(v.item, v.amount)
+    end
+    if Config.StarterHorse then
+        local horseid = GenerateHorseid()
+        local horsesex = {'male', 'female'}
+        local randomSex = math.random(1, #horsesex)
+        local randomHorseSex = horsesex[randomSex]
+        MySQL.insert('INSERT INTO player_horses(stable, citizenid, horseid, name, horse, gender, active, born) VALUES(@stable, @citizenid, @horseid, @name, @horse, @gender, @active, @born)', {
+            ['@stable'] = Config.StarterHorseStable,
+            ['@citizenid'] = Player.PlayerData.citizenid,
+            ['@horseid'] = horseid,
+            ['@name'] = Config.StarterHorseName,
+            ['@horse'] = Config.StarterHorseModel,
+            ['@gender'] = randomHorseSex,
+            ['@active'] = true,
+            ['@born'] = os.time()
+        })
+    end
+end
 
--- To load data when they join the server
-RegisterNetEvent('rsg-multicharacter:server:loadUserData', function(cData, skindata)
+RegisterNetEvent('rsg-multicharacter:server:loadUserData', function(data, skindata)
     local src = source
-    if RSGCore.Player.Login(src, cData.citizenid) then
-        logprint(GetPlayerName(src)..' ('..locale('print_sv_id')..': '..cData.citizenid..') '..locale('print_sv_loaded'))
+    if RSGCore.Player.Login(src, data.citizenid) then
+        print('^2[rsg-core]^7 '..GetPlayerName(src)..' (Citizen ID: '..data.citizenid..') has succesfully loaded!')
         RSGCore.Commands.Refresh(src)
         TriggerClientEvent("rsg-multicharacter:client:closeNUI", src)
         if not skindata then
-            TriggerClientEvent('rsg-spawn:client:setupSpawnUI', src, cData, false)
+            TriggerClientEvent('rsg-spawn:client:setupSpawnUI', src, data, false)
         else
             TriggerClientEvent('rsg-appearance:client:OpenCreator', src, false, true)
         end
-        TriggerEvent('rsg-log:server:CreateLog', 'joinleave', locale('sv_joined'), 'green', '**' .. GetPlayerName(src) .. '** '..locale('sv_joined_log'))
+        TriggerEvent('rsg-log:server:CreateLog', 'joinleave', 'Player Joined Server', 'green', '**' .. GetPlayerName(src) .. '** ('..data.citizenid..' | '..src..') joined the server..')
     end
 end)
 
--- Give starter items to the player when they create a new character
 RegisterNetEvent('rsg-multicharacter:server:createCharacter', function(data)
     local newData = {}
     local src = source
     newData.cid = data.cid
     newData.charinfo = data
     if RSGCore.Player.Login(src, false, newData) then
-        RSGCore.ShowSuccess(GetCurrentResourceName(), GetPlayerName(src)..' '.. locale('sv_loaded'))
+        RSGCore.ShowSuccess(GetCurrentResourceName(), GetPlayerName(src)..' has succesfully loaded!')
         RSGCore.Commands.Refresh(src)
-        TriggerEvent("rsg-multicharacter:server:giveStarterItems", src)
+        GiveStarterItems(src)
     end
 end)
 
--- Delete the character from the database
 RegisterNetEvent('rsg-multicharacter:server:deleteCharacter', function(citizenid)
     MySQL.update('DELETE FROM playerskins WHERE citizenid = ?', {citizenid})
     RSGCore.Player.DeleteCharacter(source, citizenid)
 end)
 
+RegisterNetEvent('rsg-multicharacter:server:disconnect', function(source)
+    DropPlayer(source, "You have disconnected from RSG RedM")
+end)
+
 -- Callbacks
--- To setup the characters for the player
 RSGCore.Functions.CreateCallback("rsg-multicharacter:server:setupCharacters", function(source, cb)
     local license = RSGCore.Functions.GetIdentifier(source, 'license')
     local plyChars = {}
@@ -59,14 +87,13 @@ RSGCore.Functions.CreateCallback("rsg-multicharacter:server:setupCharacters", fu
             result[i].charinfo = json.decode(result[i].charinfo)
             result[i].money = json.decode(result[i].money)
             result[i].job = json.decode(result[i].job)
-            -- result[i].metadata = json.decode(result[i].metadata)
+            result[i].metadata = json.decode(result[i].metadata)
             plyChars[#plyChars+1] = result[i]
         end
         cb(plyChars)
     end)
 end)
 
--- To get the number of characters a player can create
 RSGCore.Functions.CreateCallback("rsg-multicharacter:server:GetNumberOfCharacters", function(source, cb)
     local license = RSGCore.Functions.GetIdentifier(source, 'license')
     local numOfChars = 0
@@ -85,7 +112,6 @@ RSGCore.Functions.CreateCallback("rsg-multicharacter:server:GetNumberOfCharacter
     cb(numOfChars)
 end)
 
--- To get the appearance of a character by citizenid
 RSGCore.Functions.CreateCallback("rsg-multicharacter:server:getAppearance", function(source, cb, citizenid)
     MySQL.Async.fetchAll('SELECT * FROM playerskins WHERE citizenid = ?', {citizenid}, function(result)
         if result ~= nil and #result > 0 then
@@ -100,14 +126,12 @@ RSGCore.Functions.CreateCallback("rsg-multicharacter:server:getAppearance", func
     end)
 end)
 
--- Commands
--- To create a new character
-RSGCore.Commands.Add("logout", locale('sv_logout'), {}, false, function(source)
+-- commands
+RSGCore.Commands.Add("logout", "Logout of Character (Admin Only)", {}, false, function(source)
     RSGCore.Player.Logout(source)
     TriggerClientEvent('rsg-multicharacter:client:chooseChar', source)
 end, 'admin')
 
--- To close the NUI
-RSGCore.Commands.Add("closeNUI", locale('sv_closeNUI'), {}, false, function(source)
+RSGCore.Commands.Add("closeNUI", "Close Multi NUI", {}, false, function(source)
     TriggerClientEvent('rsg-multicharacter:client:closeNUI', source)
 end, 'user')

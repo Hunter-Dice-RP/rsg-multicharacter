@@ -1,9 +1,4 @@
 local RSGCore = exports['rsg-core']:GetCoreObject()
-lib.locale()
-
-local function logprint(key)
-    if Config.Debug then print(locale('print_sv_debug'), locale('print_sv_inv'), key) end
-end
 
 -- Safe JSON decode, returns fallback on error or non-table
 local function SafeDecode(jsonString, fallback)
@@ -12,20 +7,18 @@ local function SafeDecode(jsonString, fallback)
     return fallback or {}
 end
 
--- Safe MySQL query await, catches errors and logs them
 local function SafeQueryAwait(query, params)
     local result
     local ok, err = xpcall(function()
         result = MySQL.query.await(query, params)
     end, function(e)
-        logprint(locale('print_sv_error')..' '..e)
-        logprint(debug.traceback())
+        print("[ERROR SQL] "..e)
+        print(debug.traceback())
     end)
     return result or {}
 end
 
 -- HELPERS 
--- To Fetch a citizenid
 local function FetchTelegrams(citizenid)
     local telegrams = SafeQueryAwait("SELECT * FROM telegrams WHERE citizenid = ?", { citizenid })
     for i = #telegrams, 1, -1 do
@@ -63,8 +56,9 @@ local function FetchOutfits(citizenid)
 end
 
 local function FetchHorses(citizenid)
-    local query = "SELECT * FROM player_horses WHERE citizenid = ? ORDER BY `horsexp` DESC LIMIT 5"
+    local query = "SELECT * FROM player_horses WHERE citizenid = ? ORDER BY `horsexp` DESC LIMIT 3"
     local horses = SafeQueryAwait(query, { citizenid }) or {}
+    -- local horses = SafeQueryAwait("SELECT * FROM player_horses WHERE citizenid = ?", { citizenid }) or {}
     local out = {}
     for _, horse in ipairs(horses) do
         table.insert(out, {
@@ -84,10 +78,7 @@ local function FetchCompanions(citizenid)
     local out = {}
     for _, companion in ipairs(companions) do
         table.insert(out, {
-            name = companion.companiondata.name,
-            companionxp = companion.companiondata.companionxp or 0,
             stable = companion.stable,
-            gender = companion.companiondata.gender or 0,
             companiondata = SafeDecode(companion.companiondata, {}),
             components = SafeDecode(companion.components, {})
         })
@@ -96,14 +87,10 @@ local function FetchCompanions(citizenid)
 end
 
 local function FetchAnimations(citizenid)
-    local resultAnim = nil
-    if Config.Investigation.dossier.sqlAnimations == 'wd_emotemenu' then
-        resultAnim = SafeQueryAwait("SELECT * FROM emenu_styles WHERE character_id = ?", { citizenid })
-    else -- if Config.Investigation.dossier.sqlAnimations == 'rsg-animations' then
-        resultAnim = SafeQueryAwait("SELECT * FROM favorites_animations WHERE citizenid = ?", { citizenid })
-    end
+    -- local animations = MySQL.Sync.fetchAll('SELECT * FROM favorites_animations WHERE citizenid = ?', { citizenid })
+    local result = SafeQueryAwait("SELECT * FROM emenu_styles WHERE character_id = ?", { citizenid })
     local out = {}
-    for _, v in ipairs(resultAnim) do
+    for _, v in ipairs(result) do
         table.insert(out, v)
     end
     return out
@@ -147,147 +134,140 @@ local function describeArrests(data)
     end
 end ]]
 
--- Define the biography sections with their respective locales
+
 local bioSections = {
     intro = {
-        locale('inv_sv_bio_intro_a'),
-        locale('inv_sv_bio_intro_b'),
-        locale('inv_sv_bio_intro_c'),
-        locale('inv_sv_bio_intro_d'),
-        locale('inv_sv_bio_intro_e'),
+        "Dicen que en estos lares nadie olvida un rostro… ni una tragedia. El tal %s %s parece decidido a cambiar eso.",
+        "En cuanto pisó el polvoriento pueblo, %s %s supo que el Oeste no perdona a los de corazón blando.",
+        "%s %s llegó como el viento entre los cañones: sin aviso, sin disculpas.",
+        "Nadie sabe si %s %s es el héroe que necesitábamos… o el desastre que merecíamos.",
+        "Las leyendas no siempre llevan capa. Algunas montan a caballo y escupen tabaco. Como %s %s."
     },
     background = {
-        locale('inv_sv_bio_background_a'),
-        locale('inv_sv_bio_background_b'),
-        locale('inv_sv_bio_background_c'),
-        locale('inv_sv_bio_background_d'),
-        locale('inv_sv_bio_background_e'),
+        "Con un grupo sanguíneo %s y más cicatrices que un rancho abandonado, pertenece al gremio de %s.",
+        "Forjado entre whisky y pólvora, su pacto con la banda “%s” le ha granjeado tan buena como mala reputación.",
+        "Criado por bandidos y educado por el caos, su lealtad es tan volátil como la dinamita.",
+        "Dicen que %s no es un tipo, sino una tormenta con botas. Marca registrada de %s.",
+        "Abandonado por el destino, recogido por %s. Así comenzó el cuento que aún no termina."
     },
     assets = {
         function(ctx)
             return ctx.houses > 0
-                and (locale('inv_sv_bio_assets_houses_a')):format(ctx.houses)
-                or locale('inv_sv_bio_assets_nohouses_a')
+                and ("Es dueño de %d moradas donde pueden oírse murmullos… y a veces disparos."):format(ctx.houses)
+                or "No paga renta, pero tampoco tiene casa que quemar."
         end,
         function(ctx)
             return ctx.houses > 0
-                and (locale('inv_sv_bio_assets_houses_b')):format(ctx.houses)
-                or locale('inv_sv_bio_assets_nohouses_b')
+                and ("Posee %d propiedades. Si las paredes hablaran, gritarían."):format(ctx.houses)
+                or "No tiene techo fijo. Como las balas perdidas, va donde el viento lo arrastra."
         end,
         function(ctx)
             return ctx.outfits > 0
-                and (locale('inv_sv_bio_assets_outfits_a')):format(ctx.outfits)
-                or locale('inv_sv_bio_assets_outfits_a')
+                and ("Viste con %d atuendos tan relucientes como un revólver recién pulido."):format(ctx.outfits)
+                or "Hace de su harapos una bandera de orgullo."
         end,
         function(ctx)
             return ctx.outfits > 0
-                and (locale('inv_sv_bio_assets_outfits_b')):format(ctx.outfits)
-                or locale('inv_sv_bio_assets_outfits_b')
-        end
-    },
-    horses = {
-        function(ctx)
-            return ctx.horses > 0
-                and (locale('inv_sv_bio_horses_a')):format(ctx.horses)
-                or locale('inv_sv_bio_nohorses_a')
-        end,
-        function(ctx)
-            return ctx.horses > 0
-                and (locale('inv_sv_bio_horses_b')):format(ctx.horses)
-                or locale('inv_sv_bio_nohorses_b')
+                and ("Su guardarropa es testigo de %d vidas pasadas."):format(ctx.outfits)
+                or "Viste lo puesto. Y lo puesto lleva años puesto."
         end
     },
     companions = {
         function(ctx)
+            return ctx.horses > 0
+                and ("Posee %d corcel(es) que relinchan a la menor señal."):format(ctx.horses)
+                or "Dejó a punta de espuelas más caballos que raíces."
+        end,
+        function(ctx)
+            return ctx.horses > 0
+                and ("Sus %d caballos conocen caminos que ni los mapas se atreven a mostrar."):format(ctx.horses)
+                or "No monta. Prefiere dejar huellas con las botas rotas."
+        end,
+        function(ctx)
             return ctx.companions > 0
-                and (locale('inv_sv_bio_companions_a')):format(ctx.companions)
-                or locale('inv_sv_bio_nocompanions_a')
+                and ("A su lado lame la mano hambrienta de %d compañero(s) peludos."):format(ctx.companions)
+                or "Ni un cuervo le hace compañía en el amanecer."
         end
     },
     behavior = {
         function(ctx)
-            return (locale('inv_sv_bio_behavior_walk_a')):format(ctx.walk)
+            return ("Camina con estilo %s, es capaz de ganarse el aplauso de un tiburón y aterrorizar a un gato."):format(ctx.walk)
         end,
         function(ctx)
-            return (locale('inv_sv_bio_behavior_walk_b')):format(ctx.walk)
+            return ("Cuando la bronca llama, saca su estilo de pelea %s como si fuera un cuchillo bien afilado."):format(ctx.brawl)
         end,
         function(ctx)
-            return (locale('inv_sv_bio_behavior_brawl_a')):format(ctx.brawl)
-        end,
-        function(ctx)
-            return (locale('inv_sv_bio_behavior_brawl_b')):format(ctx.brawl)
+            return ("Camina como quien ya ha muerto y sigue de pie. Su estilo: %s."):format(ctx.walk)
         end
-    },
-    outro = {
-        locale('inv_sv_bio_outro_a'),
-        locale('inv_sv_bio_outro_b'),
-        locale('inv_sv_bio_outro_c'),
-        locale('inv_sv_bio_outro_d'),
-        locale('inv_sv_bio_outro_e'),
     },
     legal = {
         function(ctx)
-            return ctx.isWanted and locale('inv_sv_bio_legal_wanted_a')
-        end,
-        function(ctx)
-            return ctx.isWanted and locale('inv_sv_bio_legal_wanted_b')
-        end,
-        function(ctx)
-            return ctx.isWanted and locale('inv_sv_bio_legal_wanted_c')
+            return ctx.isWanted
+                and ("Se le busca con orden de arresto de nivel ALTO, un infierno en tinta negra.")
+                or ""
         end,
         -- function(ctx)
         --     return ctx.arrests > 0
         --         and ("Con %d arrestos a cuestas, su sombra es más larga que su nombre."):format(ctx.arrests)
         --         or "Sin grilletes marcados… por ahora."
-        -- end
+        -- end,
+        function(ctx)
+            return ctx.isWanted and "Los postes de recompensa llevan su rostro… y más agujeros que un colador." or ""
+        end
+    },
+    outro = {
+        "En resumen: si lo cruzas, quítate el sombrero… y corre.",
+        "Este es su legado: polvo, disparos y risas macabras cuando cae el sol.",
+        "Ni amigo ni enemigo. Solo una advertencia con sombrero.",
+        "Si sobrevive, la historia se contará. Si no, será parte del desierto.",
+        "Un último trago, un disparo, y %s %s vuelve a fundirse en la noche…"
     }
 }
 
 local function AddFlavorInterludes()
     local interludes = {
-        locale('inv_sv_bio_interludes_a'),
-        locale('inv_sv_bio_interludes_b'),
-        locale('inv_sv_bio_interludes_c'),
-        locale('inv_sv_bio_interludes_d'),
+        "Dicen que lo vieron en Blackwater… o tal vez fue su fantasma.",
+        "El whisky le teme. Las balas lo esquivan por respeto.",
+        "Tiene enemigos que rezan por no encontrarlo, y amigos que rezan por hacerlo.",
+        "La noche en que llegó, el silencio se escondió bajo la mesa.",
     }
     return interludes[math.random(#interludes)]
 end
 
 --[[ local narrativeStyles = {
-    ["epic"] = function() return math.random(1, 3) end,
-    ["comic"] = function() return math.random(2, 4) end,
-    ["dark"] = function() return math.random(3, 5) end,
-    ["myst"] = function() return math.random(1, 5) end,
-    ["drama"] = function() return 1 end
+    ["épico"] = function() return math.random(1, 3) end,
+    ["cómico"] = function() return math.random(2, 4) end,
+    ["oscuro"] = function() return math.random(3, 5) end,
+    ["misterioso"] = function() return math.random(1, 5) end,
+    ["trágico"] = function() return 1 end
 } ]]
 
 -- Generate a brief biography based on collected data
 local function BuildBiography(data)
     -- PREPARE INFO DATA PLAYER
-    local lines = {}
     local ctx = {
-        firstname  = data.stats.charinfo.firstname or locale('inv_sv_bio_ctx_a'),
-        lastname   = data.stats.charinfo.lastname  or locale('inv_sv_bio_ctx_b'),
-        blood      = data.metadata.bloodtype or locale('inv_sv_bio_ctx_c'),
-        guild      = data.stats.job.label or locale('inv_sv_bio_ctx_d'),
-        gang       = data.stats.gang.label or locale('inv_sv_bio_ctx_e'),
+        firstname  = data.stats.charinfo.firstname or "Desconocido",
+        lastname   = data.stats.charinfo.lastname  or "",
+        blood      = data.metadata.bloodtype or "Desconocido",
+        guild      = data.stats.job.label or "ningún gremio",
+        gang       = data.stats.gang.label or "ninguna banda",
         houses     = #data.houses,
         outfits    = #data.outfits,
         horses     = #data.horses,
         companions = #data.companions,
-        walk       = data.animations[1] and (data.animations[1].walk_style or locale('inv_sv_bio_ctx_f')) or locale('inv_sv_bio_ctx_f'),
-        brawl      = data.animations[1] and (data.animations[1].brawl_style or locale('inv_sv_bio_ctx_g')) or locale('inv_sv_bio_ctx_g'),
+        walk       = data.animations[1] and (data.animations[1].walk_style or "Normal") or "Normal",
+        brawl      = data.animations[1] and (data.animations[1].brawl_style or "Estándar") or "Estándar",
         -- arrests    = data.legal.arrests,
         isWanted   = data.legal.isWanted
     }
 
-    -- test narrative styles
+    local lines = {}
+    -- Intro
+
     -- local idx = narrativeStyles["épico"] and narrativeStyles["épico"]() or math.random(1, #bioSections.intro)
     -- local intro = bioSections.intro[idx]
-
-    -- Intro
-    local intro = bioSections.intro[math.random(#bioSections.intro)]
-    table.insert(lines, intro:format(ctx.firstname, ctx.lastname))
+    -- local intro = bioSections.intro[math.random(#bioSections.intro)]
+    -- table.insert(lines, intro:format(ctx.firstname, ctx.lastname))
 
     -- Background
     local bg = bioSections.background[math.random(#bioSections.background)]
@@ -311,7 +291,6 @@ local function BuildBiography(data)
         if txt ~= "" then table.insert(lines, txt) end
     end
 
-    -- Interludes
     if #lines >= 2 then
         table.insert(lines, math.random(2, #lines), AddFlavorInterludes())
     else
@@ -326,15 +305,18 @@ local function BuildBiography(data)
     table.insert(lines, outro)
 
     if #lines > 0 then
+        -- Concatena las líneas en un solo string
         local bioString = table.concat(lines, " ")
+        -- Asigna el string al campo bio de los datos
         data.bio = bioString
+        -- DEVUELVE EL STRING
         return bioString
     end
 
-    return locale('inv_sv_nobio')
+    -- Devuelve un valor por defecto si no se generaron líneas
+    return "Sin observaciones notables."
 end
 
--- To get investigation data for a specific citizenid
 RSGCore.Functions.CreateCallback('rsg-multicharacter:server:getInvestigationData', function(source, cb, citizenid)
 
     local data = {
@@ -365,27 +347,28 @@ RSGCore.Functions.CreateCallback('rsg-multicharacter:server:getInvestigationData
         },
         metadata = {},
         inventory = {},
-        bio = locale('inv_sv_nobio'),
+        bio = "Sin observaciones notables."
     }
 
     local result = SafeQueryAwait("SELECT * FROM players WHERE citizenid = ?", { citizenid })
     if not result[1] then return cb(data) end
     local pData = result[1]
 
-    -- INFO BASIC
-    -- Others Sections / EXTRA
-    if Config.Investigation.outfits.enabledSkins then data.skins = FetchSkins(citizenid) end
-    if Config.Investigation.dossier.enableHouses then data.houses, data.housekeys = FetchHousesAndKeys(citizenid) end
-    if Config.Investigation.dossier.enableHorses then data.horses = FetchHorses(citizenid) end
-    if Config.Investigation.dossier.enableCompanions then data.companions = FetchCompanions(citizenid) end
-    if Config.Investigation.dossier.enableAnimations then data.animations = FetchAnimations(citizenid) end
+    -- Sections
+    if Config.InvestigationPanels.telegrams.enabled then data.telegrams = FetchTelegrams(citizenid) end
+    if Config.InvestigationPanels.outfits.enabledSkins then data.skins = FetchSkins(citizenid) end
+    if Config.InvestigationPanels.outfits.enabled then data.outfits = FetchOutfits(citizenid) end
 
-    -- Telegrams, outfits and dossier
-    if Config.InvPanels.telegrams.enabled then data.telegrams = FetchTelegrams(citizenid) end
-    if Config.InvPanels.outfits.enabled then data.outfits = FetchOutfits(citizenid) end
-    if Config.InvPanels.dossier.enabled then
+    if Config.InvestigationPanels.dossier.enableHouses then data.houses, data.housekeys = FetchHousesAndKeys(citizenid) end
+    if Config.InvestigationPanels.dossier.enableHorses then data.horses = FetchHorses(citizenid) end
+    if Config.InvestigationPanels.dossier.enableCompanions then data.companions = FetchCompanions(citizenid) end
+    if Config.InvestigationPanels.dossier.enableAnimations then data.animations = FetchAnimations(citizenid) end
 
-        -- logprint( locale('print_sv_dossier_enabled')..": ", json.encode(pData))
+    -- Stats & metadata
+    if Config.InvestigationPanels.dossier.enabled then
+
+        -- INFO BASIC
+        -- print("3. [INVESTIGACIÓN] Datos crudos del jugador desde la BD: ", json.encode(pData))
         data.stats = {
             playtime    = SafeDecode(pData.metadata, {}).playtime or 0,
             citizenid   = pData.citizenid,
@@ -408,14 +391,15 @@ RSGCore.Functions.CreateCallback('rsg-multicharacter:server:getInvestigationData
             data.legal.isWanted = true
         end
 
-        -- Generate Biografía
+        -- Generar Biografía
         data.bio = BuildBiography(data)
 
-        -- logprint(locale('print_sv_send')..": ", json.encode(data))
+        -- print("10. [INVESTIGACIÓN] Enviando datos finales al cliente: ", json.encode(data))
     end
     cb(data)
 end)
 
--- To get investigation data for the client
--- RegisterNetEvent('rsg-multicharacter:client:getInvestigationData', function()
--- end)
+-- Mark telegrams as read
+RSGCore.Functions.CreateCallback('rsg-multicharacter:server:markTelegramsAsRead', function(source, cb, recipientName)
+    MySQL.Async.execute('UPDATE telegrams SET status = 1 WHERE recipient = ? AND status = 0', { recipientName }, function() cb(true) end)
+end)
